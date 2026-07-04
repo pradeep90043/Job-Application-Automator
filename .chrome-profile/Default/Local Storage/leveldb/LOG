@@ -1,0 +1,6 @@
+2026/07/04-15:32:00.469 6ad936 Reusing MANIFEST /Users/apple/Desktop/pradeep/gemini-browser-extension 6/.chrome-profile/Default/Local Storage/leveldb/MANIFEST-000001
+2026/07/04-15:32:00.472 6ad936 Recovering log #23
+2026/07/04-15:32:00.473 6ad936 Reusing old log /Users/apple/Desktop/pradeep/gemini-browser-extension 6/.chrome-profile/Default/Local Storage/leveldb/000023.log 
+2026/07/04-15:39:39.499 6ad936 Level-0 table #26: started
+2026/07/04-15:39:39.505 6ad936 Level-0 table #26: 14777 bytes OK
+2026/07/04-15:39:39.512 6ad936 Delete type=0 #23

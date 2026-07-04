@@ -1,0 +1,17 @@
+{
+  "name": "gemini-browser-extension-6",
+  "version": "1.0.0",
+  "description": "A Chrome extension powered by **Google Gemini (free tier)** that can: - 🌐 Navigate to URLs - 📷 Take screenshots - 📝 Fill forms automatically - 👆 Click elements - 📋 Extract page content - ↕ Scroll pages",
+  "main": "background.js",
+  "scripts": {
+    "build:env": "node build-env.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "puppeteer": "^25.2.1"
+  }
+}

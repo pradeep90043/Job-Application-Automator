@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock LinkedIn Jobs</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f3f2ef; color: #191919; }
+    .topbar { background: #fff; border-bottom: 1px solid #dfdedb; padding: 12px 24px; font-weight: 700; color: #0a66c2; font-size: 20px; }
+    .layout { display: flex; gap: 16px; max-width: 1100px; margin: 16px auto; padding: 0 16px; }
+    .jobs-search-results-list {
+      width: 380px; height: 480px; overflow-y: auto;
+      background: #fff; border: 1px solid #dfdedb; border-radius: 8px;
+      list-style: none; margin: 0; padding: 0;
+    }
+    .jobs-search-results-list li { padding: 14px 16px; border-bottom: 1px solid #ebebeb; cursor: pointer; }
+    .jobs-search-results-list li:hover { background: #f6fbff; }
+    .job-card-list__title { color: #0a66c2; font-weight: 600; text-decoration: none; display: block; margin-bottom: 4px; }
+    .artdeco-entity-lockup__subtitle { font-size: 13px; color: #666; }
+    .jobs-details__main-content {
+      flex: 1; background: #fff; border: 1px solid #dfdedb; border-radius: 8px; padding: 24px; min-height: 430px;
+    }
+    .jobs-description__content { margin-top: 20px; line-height: 1.5; color: #333; }
+    .apply-btn {
+      background: #0a66c2; color: #fff; border: none; border-radius: 20px;
+      padding: 10px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+    .jobs-easy-apply-modal, .artdeco-modal {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 480px; background: #fff; border-radius: 8px; padding: 24px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.3); z-index: 1000;
+    }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+    .dismiss { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 18px; cursor: pointer; }
+    .modal-actions { margin-top: 20px; text-align: right; }
+    .modal-actions button {
+      background: #0a66c2; color: #fff; border: none; border-radius: 16px;
+      padding: 8px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    fieldset { border: none; padding: 0; margin: 16px 0; }
+    legend { font-weight: 600; margin-bottom: 8px; }
+    fieldset label { display: block; margin-bottom: 6px; }
+    .q-label { font-weight: 600; margin: 16px 0 8px; }
+    input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    .err { color: #b24020; display: none; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">Linked Jobs (mock)</div>
+  <div class="layout">
+    <ul class="jobs-search-results-list" id="resultsList">
+      <li data-occludable-job-id="111">
+        <a class="job-card-list__title" href="#" data-job="111">Senior React Engineer</a>
+        <div class="artdeco-entity-lockup__subtitle">Acme Corp</div>
+      </li>
+      <li data-occludable-job-id="222">
+        <a class="job-card-list__title" href="#" data-job="222">Frontend Platform Engineer</a>
+        <div class="artdeco-entity-lockup__subtitle">ExternalCo</div>
+      </li>
+      <li data-occludable-job-id="333">
+        <a class="job-card-list__title" href="#" data-job="333">Salesforce Developer</a>
+        <div class="artdeco-entity-lockup__subtitle">CRM Inc</div>
+      </li>
+    </ul>
+    <div class="jobs-details__main-content" id="detailPane">
+      <p>Select a job from the list.</p>
+    </div>
+  </div>
+  <div id="modalRoot"></div>
+
+  <script>
+    const jobData = {
+      '111': {
+        title: 'Senior React Engineer', company: 'Acme Corp', easy: true,
+        desc: 'We are hiring a Senior React Engineer with strong React, Redux and Node.js experience to build large-scale SPAs.'
+      },
+      '222': {
+        title: 'Frontend Platform Engineer', company: 'ExternalCo', easy: false,
+        desc: 'React and TypeScript heavy role. Apply on our company careers portal.'
+      },
+      '333': {
+        title: 'Salesforce Developer', company: 'CRM Inc', easy: true,
+        desc: 'Salesforce Apex, Lightning components and CRM workflows.'
+      }
+    };
+
+    document.querySelectorAll('a[data-job]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        renderDetail(a.dataset.job);
+      });
+    });
+
+    function renderDetail(id) {
+      const job = jobData[id];
+      const pane = document.getElementById('detailPane');
+      pane.innerHTML = `
+        <h2 class="job-details-jobs-unified-top-card__job-title">${job.title}</h2>
+        <div style="color:#666; margin-bottom:16px;">${job.company}</div>
+        <button class="apply-btn" id="applyBtn">${job.easy ? 'Easy Apply' : 'Apply'}</button>
+        <div class="jobs-description__content">${job.desc}</div>
+      `;
+      document.getElementById('applyBtn').addEventListener('click', () => {
+        if (job.easy) { modalStep = 1; renderModal(); }
+        else { alertExternal(); }
+      });
+    }
+
+    function alertExternal() {
+      const pane = document.getElementById('detailPane');
+      const note = document.createElement('p');
+      note.textContent = '(mock) This would open the external company site.';
+      pane.appendChild(note);
+    }
+
+    let modalStep = 1;
+    const root = document.getElementById('modalRoot');
+
+    function closeModal() { root.innerHTML = ''; }
+
+    function renderModal() {
+      if (modalStep === 1) {
+        root.innerHTML = `
+          <div class="modal-backdrop"></div>
+          <div class="jobs-easy-apply-modal" role="dialog" aria-modal="true">
+            <button class="dismiss" aria-label="Dismiss">✕</button>
+            <h3>Apply to Acme Corp</h3>
+            <fieldset>
+              <legend>Do you have 5+ years of React experience?</legend>
+              <label><input type="radio" name="react5" value="Yes"> Yes</label>
+              <label><input type="radio" name="react5" value="No"> No</label>
+            </fieldset>
+            <p class="err" id="err1">Please select an option.</p>
+            <div class="modal-actions"><button id="nextBtn">Next</button></div>
+          </div>`;
+        document.getElementById('nextBtn').addEventListener('click', () => {
+          const picked = [...document.querySelectorAll('input[name="react5"]')].some(r => r.checked);
+          if (!picked) { document.getElementById('err1').style.display = 'block'; return; }
+          modalStep = 2; renderModal();
+        });
+      } else if (modalStep === 2) {
+        root.innerHTML = `
+          <div class="modal-backdrop"></div>
+          <div class="jobs-easy-apply-modal" role="dialog" aria-modal="true">
+            <button class="dismiss" aria-label="Dismiss">✕</button>
+            <h3>Additional questions</h3>
+            <p class="q-label">How many years of experience do you have with Node.js?</p>
+            <input type="text" id="nodeYears" placeholder="">
+            <p class="err" id="err2">Please enter a value.</p>
+            <div class="modal-actions"><button id="reviewBtn">Review</button></div>
+          </div>`;
+        document.getElementById('reviewBtn').addEventListener('click', () => {
+          if (!document.getElementById('nodeYears').value.trim()) {
+            document.getElementById('err2').style.display = 'block'; return;
+          }
+          modalStep = 3; renderModal();
+        });
+      } else if (modalStep === 3) {
+        root.innerHTML = `
+          <div class="modal-backdrop"></div>
+          <div class="jobs-easy-apply-modal" role="dialog" aria-modal="true">
+            <button class="dismiss" aria-label="Dismiss">✕</button>
+            <h3>Review your application</h3>
+            <p>All answers recorded. Ready to submit.</p>
+            <div class="modal-actions"><button id="submitBtn">Submit application</button></div>
+          </div>`;
+        document.getElementById('submitBtn').addEventListener('click', () => {
+          modalStep = 4; renderModal();
+        });
+      } else {
+        root.innerHTML = `
+          <div class="modal-backdrop"></div>
+          <div class="artdeco-modal" role="dialog" aria-modal="true">
+            <h3>Your application was sent!</h3>
+            <p>Acme Corp will review it soon.</p>
+            <div class="modal-actions"><button id="doneBtn">Done</button></div>
+          </div>`;
+        document.getElementById('doneBtn').addEventListener('click', closeModal);
+      }
+      root.querySelectorAll('.dismiss').forEach(b => b.addEventListener('click', closeModal));
+    }
+  </script>
+</body>
+</html>

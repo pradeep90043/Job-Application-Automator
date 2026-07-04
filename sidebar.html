@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Agent Chat</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d0d14;
+      --surface: #14141f;
+      --surface2: #1c1c2e;
+      --border: #25253a;
+      --border2: #2e2e45;
+      --text: #e2e2f0;
+      --muted: #6b6b90;
+      --blue: #4f8ef7;
+      --blue-dim: #1a2a4a;
+      --green: #4ade80;
+      --green-dim: #0f2a1a;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --red-dim: #2a1010;
+      --purple: #a78bfa;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      padding: 14px 16px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .logo {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #4f8ef7, #a78bfa);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+      color: #fff;
+    }
+    .header-text { flex: 1; }
+    .header-text h1 { font-size: 13px; font-weight: 600; color: #fff; letter-spacing: 0.2px; }
+    .header-text p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    
+    .status-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--red-dim);
+      border: 1px solid #4a2020;
+      border-radius: 20px;
+      padding: 3px 9px;
+      font-size: 10px; color: var(--red);
+      transition: all 0.3s;
+    }
+    .status-pill.ready { background: var(--green-dim); border-color: #1a4a2a; color: var(--green); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Conversational Chat Box */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--bg);
+    }
+    .chat-container::-webkit-scrollbar { width: 4px; }
+    .chat-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #4f8ef7, #6366f1);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message.ai {
+      align-self: flex-start;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-bottom-left-radius: 2px;
+    }
+
+    /* Thinking indicator */
+    .message.ai.thinking .dots {
+      display: inline-block;
+    }
+    .message.ai.thinking .dot {
+      animation: blink 1.4s infinite both;
+      font-size: 18px;
+      line-height: 10px;
+      display: inline-block;
+    }
+    .message.ai.thinking .dot:nth-child(2) { animation-delay: .2s; }
+    .message.ai.thinking .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink {
+      0% { opacity: .2; }
+      20% { opacity: 1; }
+      100% { opacity: .2; }
+    }
+
+    /* System Status Messages */
+    .message.status {
+      align-self: center;
+      max-width: 95%;
+      background: rgba(20, 20, 31, 0.6);
+      border: 1px dashed var(--border2);
+      border-radius: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Cascadia Code', 'Courier New', monospace;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 6px 10px;
+    }
+    .message.status .icon { flex-shrink: 0; font-weight: bold; }
+    .message.status .text { flex: 1; }
+    
+    .message.status.action { color: var(--green); border-color: rgba(74, 222, 128, 0.2); }
+    .message.status.error  { color: var(--red); border-color: rgba(248, 113, 113, 0.2); background: var(--red-dim); }
+    .message.status.warn   { color: var(--yellow); border-color: rgba(251, 191, 36, 0.2); }
+    .message.status.step   { color: var(--purple); font-weight: 600; border-style: solid; }
+    .message.status.done   { color: var(--green); border-color: rgba(74, 222, 128, 0.3); background: var(--green-dim); font-weight: 600; }
+
+    /* Chat Input Area */
+    .input-area {
+      padding: 12px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 6px 14px;
+      transition: border-color 0.2s;
+    }
+    .input-wrapper:focus-within { border-color: var(--blue); }
+    
+    .chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      resize: none;
+      font-family: inherit;
+      font-size: 13px;
+      max-height: 70px;
+      padding: 4px 0;
+      line-height: 1.4;
+    }
+    .chat-input::placeholder { color: #35354f; }
+
+    .btn-send, .btn-stop {
+      background: none;
+      border: none;
+      color: var(--blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 50%;
+      transition: background 0.2s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-send:hover { color: #8ab4f8; background: rgba(79, 142, 247, 0.1); }
+    .btn-stop { color: var(--red); }
+    .btn-stop:hover { background: rgba(248, 113, 113, 0.1); }
+
+    /* Header icon button */
+    .btn-icon {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 6px;
+      flex-shrink: 0; line-height: 1;
+    }
+    .btn-icon:hover { color: var(--text); background: var(--surface2); }
+
+    /* Mode bar */
+    .mode-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mode-seg {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .mode-seg button {
+      background: none; border: none; color: var(--muted);
+      font-size: 11px; padding: 5px 10px; cursor: pointer; font-family: inherit;
+    }
+    .mode-seg button.active { background: var(--blue-dim); color: var(--blue); font-weight: 600; }
+    .btn-mass {
+      margin-left: auto;
+      background: linear-gradient(135deg, #4f8ef7, #6366f1);
+      color: #fff; border: none; border-radius: 8px;
+      padding: 6px 12px; font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn-mass:hover:not(:disabled) { opacity: 0.9; }
+    .btn-mass:disabled { opacity: 0.5; cursor: default; }
+
+    /* Settings modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 14px;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      width: 100%;
+      max-height: 92vh;
+      display: flex; flex-direction: column;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h2 { font-size: 13px; color: #fff; }
+    .modal-body { padding: 12px 16px; overflow-y: auto; }
+    .modal-body::-webkit-scrollbar { width: 4px; }
+    .modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+    .modal-body h3 {
+      font-size: 11px; color: var(--purple);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 14px 0 8px;
+    }
+    .modal-body h3:first-child { margin-top: 0; }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .form-group input[type=text], .form-group input[type=number], .form-group textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px; padding: 6px 8px;
+      font-family: inherit;
+      outline: none;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--blue); }
+    .form-group textarea { resize: vertical; min-height: 52px; }
+    .form-check { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 10px; }
+    .form-row { display: flex; gap: 8px; }
+    .form-row .form-group { flex: 1; }
+    .modal-footer {
+      display: flex; gap: 8px; justify-content: flex-end;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-footer button {
+      border: none; border-radius: 8px;
+      padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+    }
+    #settingsSave { background: var(--blue); color: #fff; font-weight: 600; }
+    #settingsCancel { background: var(--surface2); color: var(--text); }
+
+    /* Inline chat buttons (confirmations, approve/skip) */
+    .chat-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .chat-buttons button {
+      background: var(--blue-dim);
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      border-radius: 6px;
+      padding: 4px 10px; font-size: 11px;
+      cursor: pointer; font-family: inherit;
+    }
+    .chat-buttons button:hover:not(:disabled) { background: var(--blue); color: #fff; }
+    .chat-buttons button:disabled { opacity: 0.4; cursor: default; }
+    .chat-buttons button.chosen { background: var(--blue); color: #fff; opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="sidebar">
+
+  <div class="header">
+    <div class="logo">✦</div>
+    <div class="header-text">
+      <h1>Gemini Agent</h1>
+      <p id="statusText">Connecting...</p>
+    </div>
+    <button class="btn-icon" id="settingsBtn" title="Settings">⚙</button>
+    <div class="status-pill" id="statusPill">
+      <div class="status-dot"></div>
+    </div>
+  </div>
+
+  <!-- Mode bar -->
+  <div class="mode-bar">
+    <div class="mode-seg" id="modeSeg">
+      <button data-mode="dry-run" class="active" title="Evaluate and score jobs without applying">Dry run</button>
+      <button data-mode="manual" title="Ask before each application">Manual</button>
+      <button data-mode="auto" title="Apply automatically to matched jobs">Auto</button>
+    </div>
+    <button class="btn-mass" id="massApplyBtn" title="Scan this page's job listings and apply per your criteria">▶ Mass Apply</button>
+  </div>
+
+  <!-- Chat container -->
+  <div class="chat-container" id="chatBox">
+    <div class="message status info">
+      <span class="icon">·</span>
+      <span class="text">Welcome! Ask questions about the page, or give instructions (e.g. click buttons, fill forms).</span>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea class="chat-input" id="goalInput" rows="1" placeholder="Ask Claude..."></textarea>
+      <button class="btn-send" id="runBtn" title="Send Message">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+      <button class="btn-stop" id="stopBtn" title="Stop Agent" style="display: none;">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 19h12V5H6v14z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚙ Settings</h2>
+      <button class="btn-icon" id="settingsCloseBtn" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <h3>Profile</h3>
+      <div class="form-group">
+        <label for="sName">Name</label>
+        <input type="text" id="sName" placeholder="Your full name">
+      </div>
+      <div class="form-group">
+        <label for="sSkills">Skills — one per line as <code>skill : years</code></label>
+        <textarea id="sSkills" rows="5" placeholder="React : 6&#10;JavaScript : 6&#10;Node.js : 3"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sCurrentCTC">Current CTC</label>
+          <input type="text" id="sCurrentCTC" placeholder="18 LPA">
+        </div>
+        <div class="form-group">
+          <label for="sExpectedCTC">Expected CTC</label>
+          <input type="text" id="sExpectedCTC" placeholder="25 LPA">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sNotice">Notice period (days)</label>
+          <input type="text" id="sNotice" placeholder="30">
+        </div>
+        <div class="form-group">
+          <label for="sAvailability">Interview availability</label>
+          <input type="text" id="sAvailability" placeholder="Virtual, weekdays">
+        </div>
+      </div>
+      <div class="form-check">
+        <input type="checkbox" id="sRelocation">
+        <label for="sRelocation">Willing to relocate</label>
+      </div>
+
+      <h3>Matching Criteria</h3>
+      <div class="form-group">
+        <label for="sApplyList">Apply keywords (comma-separated)</label>
+        <textarea id="sApplyList" rows="2" placeholder="React, Node.js, MERN, TypeScript, Next.js"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="sSkipList">Skip keywords (comma-separated)</label>
+        <textarea id="sSkipList" rows="2" placeholder="Salesforce, Angular, Flutter, WordPress"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="sAnswers">Canned answers — one per line as <code>question keyword = answer</code></label>
+        <textarea id="sAnswers" rows="4" placeholder="react experience = 6&#10;notice period = 30&#10;relocate = Yes"></textarea>
+      </div>
+
+      <h3>Automation</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sThreshold">Match threshold (0–100)</label>
+          <input type="number" id="sThreshold" min="0" max="100">
+        </div>
+        <div class="form-group">
+          <label for="sDelay">Delay between applies (sec)</label>
+          <input type="number" id="sDelay" min="1" max="120">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="sMaxApps">Max applications per session</label>
+        <input type="number" id="sMaxApps" min="1" max="100">
+      </div>
+      <div class="form-check">
+        <input type="checkbox" id="sConfirmAuto">
+        <label for="sConfirmAuto">Ask for confirmation before auto-apply</label>
+      </div>
+
+      <h3>LLM Backend</h3>
+      <div class="form-group">
+        <label for="sLlmUrl">Base URL</label>
+        <input type="text" id="sLlmUrl" placeholder="http://host:3001/v1">
+      </div>
+      <div class="form-group">
+        <label for="sLlmKey">API key</label>
+        <input type="text" id="sLlmKey" placeholder="freellmapi-...">
+      </div>
+      <div class="form-group">
+        <label for="sLlmModel">Model</label>
+        <input type="text" id="sLlmModel" placeholder="auto">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="settingsCancel">Cancel</button>
+      <button id="settingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/env.js"></script>
+<script src="js/config.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/form-filler.js"></script>
+<script src="js/sites/naukri.js"></script>
+<script src="js/sites/linkedin.js"></script>
+<script src="js/pipeline.js"></script>
+<script src="js/settings-ui.js"></script>
+<script src="sidebar.js"></script>
+</body>
+</html>
